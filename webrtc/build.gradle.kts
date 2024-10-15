@@ -10,7 +10,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        minSdk = 24
+        minSdk = 23
 
         consumerProguardFiles("consumer-rules.pro")
     }
@@ -36,13 +36,13 @@ dependencies {
 
 
 mavenPublishing {
-    coordinates("io.github.zwonb", "webrtc-android", "130.0.6723.40")
+    coordinates("io.github.zwonb", "webrtc-android", "129.0.6668.101")
 
     pom {
         name.set("webrtc-android")
         description.set("WebRTC Android Library")
         inceptionYear.set("2024")
-        url.set("https://github.com/zwonb/WebRTC Android Library/")
+        url.set("https://github.com/zwonb/WebRTC-Android-Library/")
         licenses {
             license {
                 name.set("The Apache License, Version 2.0")
@@ -58,9 +58,9 @@ mavenPublishing {
             }
         }
         scm {
-            url.set("https://github.com/zwonb/WebRTC Android Library/")
-            connection.set("scm:git:git://github.com/zwonb/WebRTC Android Library.git")
-            developerConnection.set("scm:git:ssh://git@github.com/zwonb/WebRTC Android Library.git")
+            url.set("https://github.com/zwonb/WebRTC-Android-Library/")
+            connection.set("scm:git:git://github.com/zwonb/WebRTC-Android-Library.git")
+            developerConnection.set("scm:git:ssh://git@github.com/zwonb/WebRTC-Android-Library.git")
         }
     }
 
