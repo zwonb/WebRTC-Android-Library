@@ -12,7 +12,7 @@ package org.webrtc;
 
 public class Dav1dDecoder extends WrappedNativeVideoDecoder {
   @Override
-  public long createNative(long webrtcEnvRef) {
+  public long createNativeVideoDecoder() {
     return nativeCreateDecoder();
   }
 

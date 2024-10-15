@@ -16,17 +16,12 @@ import android.os.Looper;
 import android.os.Message;
 import androidx.annotation.GuardedBy;
 import androidx.annotation.Nullable;
-
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
 import org.webrtc.EglBase.EglConnection;
 
 /** EGL graphics thread that allows multiple clients to share the same underlying EGLContext. */
-public class EglThread implements RenderSynchronizer.Listener {
+public class EglThread {
   /** Callback for externally managed reference count. */
   public interface ReleaseMonitor {
     /**
@@ -36,21 +31,8 @@ public class EglThread implements RenderSynchronizer.Listener {
     boolean onRelease(EglThread eglThread);
   }
 
-  /** Interface for clients to schedule rendering updates that will run synchronized. */
-  public interface RenderUpdate {
-
-    /**
-     * Called by EglThread when the rendering window is open. `runsInline` is true when the update
-     * is executed directly while the client schedules the update.
-     */
-    void update(boolean runsInline);
-  }
-
-  public static EglThread create(
-      @Nullable ReleaseMonitor releaseMonitor,
-      @Nullable final EglBase.Context sharedContext,
-      final int[] configAttributes,
-      @Nullable RenderSynchronizer renderSynchronizer) {
+  public static EglThread create(@Nullable ReleaseMonitor releaseMonitor,
+      @Nullable final EglBase.Context sharedContext, final int[] configAttributes) {
     final HandlerThread renderThread = new HandlerThread("EglThread");
     renderThread.start();
     HandlerWithExceptionCallbacks handler =
@@ -71,17 +53,7 @@ public class EglThread implements RenderSynchronizer.Listener {
     });
 
     return new EglThread(
-        releaseMonitor != null ? releaseMonitor : eglThread -> true,
-        handler,
-        eglConnection,
-        renderSynchronizer);
-  }
-
-  public static EglThread create(
-      @Nullable ReleaseMonitor releaseMonitor,
-      @Nullable final EglBase.Context sharedContext,
-      final int[] configAttributes) {
-    return create(releaseMonitor, sharedContext, configAttributes, /* renderSynchronizer= */ null);
+        releaseMonitor != null ? releaseMonitor : eglThread -> true, handler, eglConnection);
   }
 
   /**
@@ -126,35 +98,18 @@ public class EglThread implements RenderSynchronizer.Listener {
   private final ReleaseMonitor releaseMonitor;
   private final HandlerWithExceptionCallbacks handler;
   private final EglConnection eglConnection;
-  private final RenderSynchronizer renderSynchronizer;
-  // Pending render updates if they're overwritten per renderer.
-  private final Map<UUID, RenderUpdate> pendingRenderUpdates = new HashMap<>();
-  // Pending render updates if they're in a global queue.
-  private final List<RenderUpdate> pendingRenderUpdatesQueued = new ArrayList<>();
-  private boolean renderWindowOpen = true;
 
-  private EglThread(
-      ReleaseMonitor releaseMonitor,
-      HandlerWithExceptionCallbacks handler,
-      EglConnection eglConnection,
-      RenderSynchronizer renderSynchronizer) {
+  private EglThread(ReleaseMonitor releaseMonitor, HandlerWithExceptionCallbacks handler,
+      EglConnection eglConnection) {
     this.releaseMonitor = releaseMonitor;
     this.handler = handler;
     this.eglConnection = eglConnection;
-    this.renderSynchronizer = renderSynchronizer;
-    if (renderSynchronizer != null) {
-      renderSynchronizer.registerListener(this);
-    }
   }
 
   public void release() {
     if (!releaseMonitor.onRelease(this)) {
       // Thread is still in use, do not release yet.
       return;
-    }
-
-    if (renderSynchronizer != null) {
-      renderSynchronizer.removeListener(this);
     }
 
     handler.post(eglConnection::release);
@@ -190,52 +145,5 @@ public class EglThread implements RenderSynchronizer.Listener {
    */
   public void removeExceptionCallback(Runnable callback) {
     handler.removeExceptionCallback(callback);
-  }
-
-  /**
-   * Schedules a render update (like swapBuffers) to be run in sync with other updates on the next
-   * open render window. If the render window is currently open the update will run immediately.
-   * This method must be called on the EglThread during a render pass.
-   *
-   * @param id a unique id of the renderer that scheduled this render update.
-   */
-  public void scheduleRenderUpdate(UUID id, RenderUpdate update) {
-    if (renderWindowOpen) {
-      update.update(/* runsInline = */ true);
-    } else {
-      pendingRenderUpdates.put(id, update);
-    }
-  }
-
-  // The same as above, except that the ids are randomly generated for each frame.
-  // So this essentially becomes a queue of frame updates.
-  @Deprecated
-  public void scheduleRenderUpdate(RenderUpdate update) {
-    if (renderWindowOpen) {
-      update.update(/* runsInline = */ true);
-    } else {
-      pendingRenderUpdatesQueued.add(update);
-    }
-  }
-
-  @Override
-  public void onRenderWindowOpen() {
-    handler.post(
-        () -> {
-          renderWindowOpen = true;
-          for (RenderUpdate update : pendingRenderUpdates.values()) {
-            update.update(/* runsInline = */ false);
-          }
-          pendingRenderUpdates.clear();
-          for (RenderUpdate update: pendingRenderUpdatesQueued) {
-            update.update(/* runsInline = */ false);
-          }
-          pendingRenderUpdatesQueued.clear();
-        });
-  }
-
-  @Override
-  public void onRenderWindowClose() {
-    handler.post(() -> renderWindowOpen = false);
   }
 }

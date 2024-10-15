@@ -26,15 +26,16 @@ public class SoftwareVideoEncoderFactory implements VideoEncoderFactory {
   @Nullable
   @Override
   public VideoEncoder createEncoder(VideoCodecInfo info) {
-    if (!nativeIsSupported(nativeFactory, info)) {
+    long nativeEncoder = nativeCreateEncoder(nativeFactory, info);
+    if (nativeEncoder == 0) {
       Logging.w(TAG, "Trying to create encoder for unsupported format. " + info);
       return null;
     }
 
     return new WrappedNativeVideoEncoder() {
       @Override
-      public long createNative(long webrtcEnvRef) {
-        return nativeCreate(nativeFactory, webrtcEnvRef, info);
+      public long createNativeVideoEncoder() {
+        return nativeEncoder;
       }
 
       @Override
@@ -51,9 +52,7 @@ public class SoftwareVideoEncoderFactory implements VideoEncoderFactory {
 
   private static native long nativeCreateFactory();
 
-  private static native boolean nativeIsSupported(long factory, VideoCodecInfo info);
-
-  private static native long nativeCreate(long factory, long webrtcEnvRef, VideoCodecInfo info);
+  private static native long nativeCreateEncoder(long factory, VideoCodecInfo videoCodecInfo);
 
   private static native List<VideoCodecInfo> nativeGetSupportedCodecs(long factory);
 }

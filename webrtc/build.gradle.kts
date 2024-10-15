@@ -36,7 +36,7 @@ dependencies {
 
 
 mavenPublishing {
-    coordinates("io.github.zwonb", "webrtc-android", "129.0.6668.101")
+    coordinates("io.github.zwonb", "webrtc-android", "119.0.6045.194")
 
     pom {
         name.set("webrtc-android")
